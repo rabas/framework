@@ -60,6 +60,7 @@ class OptimizeCommand extends Command {
 		}
 		else
 		{
+			$this->error('Skipped compiling since app.debug is set to true, use --force to compile anyway.');
 			$this->call('clear-compiled');
 		}
 	}
