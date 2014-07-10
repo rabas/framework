@@ -13,7 +13,7 @@ class FrameGuard implements HttpKernelInterface {
 	protected $app;
 
 	/**
-	 * Create a new CookieQueue instance.
+	 * Create a new FrameGuard instance.
 	 *
 	 * @param  \Symfony\Component\HttpKernel\HttpKernelInterface  $app
 	 * @return void
@@ -37,7 +37,7 @@ class FrameGuard implements HttpKernelInterface {
 	{
 		$response = $this->app->handle($request, $type, $catch);
 
-		$response->headers->set('X-Frame-Options', 'SAMEORIGIN');
+		$response->headers->set('X-Frame-Options', 'SAMEORIGIN', false);
 
 		return $response;
 	}

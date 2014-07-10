@@ -13,6 +13,11 @@ class Collection extends BaseCollection {
 	 */
 	public function find($key, $default = null)
 	{
+		if ($key instanceof Model)
+		{
+			$key = $key->getKey();
+		}
+
 		return array_first($this->items, function($itemKey, $model) use ($key)
 		{
 			return $model->getKey() == $key;
@@ -68,7 +73,7 @@ class Collection extends BaseCollection {
 	 * Fetch a nested element of the collection.
 	 *
 	 * @param  string  $key
-	 * @return \Illuminate\Support\Collection
+	 * @return \Illuminate\Database\Eloquent\Collection
 	 */
 	public function fetch($key)
 	{
@@ -111,6 +116,138 @@ class Collection extends BaseCollection {
 	public function modelKeys()
 	{
 		return array_map(function($m) { return $m->getKey(); }, $this->items);
+	}
+
+	/**
+	 * Merge the collection with the given items.
+	 *
+	 * @param  \ArrayAccess|array  $items
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function merge($items)
+	{
+		$dictionary = $this->getDictionary();
+
+		foreach ($items as $item)
+		{
+			$dictionary[$item->getKey()] = $item;
+		}
+
+		return new static(array_values($dictionary));
+	}
+
+	/**
+	 * Diff the collection with the given items.
+	 *
+	 * @param  \ArrayAccess|array  $items
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function diff($items)
+	{
+		$diff = new static;
+
+		$dictionary = $this->getDictionary($items);
+
+		foreach ($this->items as $item)
+		{
+			if ( ! isset($dictionary[$item->getKey()]))
+			{
+				$diff->add($item);
+			}
+		}
+
+		return $diff;
+	}
+
+	/**
+	 * Intersect the collection with the given items.
+	 *
+ 	 * @param  \ArrayAccess|array  $items
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function intersect($items)
+	{
+		$intersect = new static;
+
+		$dictionary = $this->getDictionary($items);
+
+		foreach ($this->items as $item)
+		{
+			if (isset($dictionary[$item->getKey()]))
+			{
+				$intersect->add($item);
+			}
+		}
+
+		return $intersect;
+	}
+
+	/**
+	 * Return only unique items from the collection.
+	 *
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function unique()
+	{
+		$dictionary = $this->getDictionary();
+
+		return new static(array_values($dictionary));
+	}
+
+	/**
+	 * Returns only the models from the collection with the specified keys.
+	 *
+	 * @param  mixed  $keys
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function only($keys)
+	{
+		$dictionary = array_only($this->getDictionary(), $keys);
+
+		return new static(array_values($dictionary));
+	}
+
+	/**
+	 * Returns all models in the collection except the models with specified keys.
+	 *
+	 * @param  mixed  $keys
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function except($keys)
+	{
+	    $dictionary = array_except($this->getDictionary(), $keys);
+
+	    return new static(array_values($dictionary));
+	}
+
+	/**
+	 * Get a dictionary keyed by primary keys.
+	 *
+	 * @param  \ArrayAccess|array  $items
+	 * @return array
+	 */
+	public function getDictionary($items = null)
+	{
+		$items = is_null($items) ? $this->items : $items;
+
+		$dictionary = array();
+
+		foreach ($items as $value)
+		{
+			$dictionary[$value->getKey()] = $value;
+		}
+
+		return $dictionary;
+	}
+
+	/**
+	 * Get a base Support collection instance from this collection.
+	 *
+	 * @return \Illuminate\Support\Collection
+	 */
+	public function toBase()
+	{
+		return new BaseCollection($this->items);
 	}
 
 }

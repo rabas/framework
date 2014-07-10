@@ -1,14 +1,17 @@
 <?php namespace Illuminate\Queue;
 
+use IlluminateQueueClosure;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Queue\Console\WorkCommand;
 use Illuminate\Queue\Console\ListenCommand;
+use Illuminate\Queue\Console\RestartCommand;
 use Illuminate\Queue\Connectors\SqsConnector;
 use Illuminate\Queue\Console\SubscribeCommand;
 use Illuminate\Queue\Connectors\SyncConnector;
 use Illuminate\Queue\Connectors\IronConnector;
 use Illuminate\Queue\Connectors\RedisConnector;
 use Illuminate\Queue\Connectors\BeanstalkdConnector;
+use Illuminate\Queue\Failed\DatabaseFailedJobProvider;
 
 class QueueServiceProvider extends ServiceProvider {
 
@@ -33,6 +36,10 @@ class QueueServiceProvider extends ServiceProvider {
 		$this->registerListener();
 
 		$this->registerSubscriber();
+
+		$this->registerFailedJobServices();
+
+		$this->registerQueueClosure();
 	}
 
 	/**
@@ -42,16 +49,14 @@ class QueueServiceProvider extends ServiceProvider {
 	 */
 	protected function registerManager()
 	{
-		$me = $this;
-
-		$this->app->bindShared('queue', function($app) use ($me)
+		$this->app->bindShared('queue', function($app)
 		{
 			// Once we have an instance of the queue manager, we will register the various
 			// resolvers for the queue connectors. These connectors are responsible for
 			// creating the classes that accept queue configs and instantiate queues.
 			$manager = new QueueManager($app);
 
-			$me->registerConnectors($manager);
+			$this->registerConnectors($manager);
 
 			return $manager;
 		});
@@ -66,9 +71,11 @@ class QueueServiceProvider extends ServiceProvider {
 	{
 		$this->registerWorkCommand();
 
+		$this->registerRestartCommand();
+
 		$this->app->bindShared('queue.worker', function($app)
 		{
-			return new Worker($app['queue']);
+			return new Worker($app['queue'], $app['queue.failer'], $app['events']);
 		});
 	}
 
@@ -115,6 +122,21 @@ class QueueServiceProvider extends ServiceProvider {
 		});
 
 		$this->commands('command.queue.listen');
+	}
+
+	/**
+	 * Register the queue restart console command.
+	 *
+	 * @return void
+	 */
+	public function registerRestartCommand()
+	{
+		$this->app->bindShared('command.queue.restart', function($app)
+		{
+			return new RestartCommand;
+		});
+
+		$this->commands('command.queue.restart');
 	}
 
 	/**
@@ -239,13 +261,45 @@ class QueueServiceProvider extends ServiceProvider {
 	}
 
 	/**
+	 * Register the failed job services.
+	 *
+	 * @return void
+	 */
+	protected function registerFailedJobServices()
+	{
+		$this->app->bindShared('queue.failer', function($app)
+		{
+			$config = $app['config']['queue.failed'];
+
+			return new DatabaseFailedJobProvider($app['db'], $config['database'], $config['table']);
+		});
+	}
+
+	/**
+	 * Register the Illuminate queued closure job.
+	 *
+	 * @return void
+	 */
+	protected function registerQueueClosure()
+	{
+		$this->app->bindShared('IlluminateQueueClosure', function($app)
+		{
+			return new IlluminateQueueClosure($app['encrypter']);
+		});
+	}
+
+	/**
 	 * Get the services provided by the provider.
 	 *
 	 * @return array
 	 */
 	public function provides()
 	{
-		return array('queue', 'queue.worker', 'queue.listener', 'command.queue.work', 'command.queue.listen', 'command.queue.subscribe');
+		return array(
+			'queue', 'queue.worker', 'queue.listener', 'queue.failer',
+			'command.queue.work', 'command.queue.listen', 'command.queue.restart',
+			'command.queue.subscribe',
+		);
 	}
 
 }

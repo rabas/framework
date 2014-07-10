@@ -1,12 +1,14 @@
 <?php
 
+use Illuminate\Support\Str;
+
 if ( ! function_exists('action'))
 {
 	/**
 	 * Generate a URL to a controller action.
 	 *
 	 * @param  string  $name
-	 * @param  string  $parameters
+	 * @param  array   $parameters
 	 * @return string
 	 */
 	function action($name, $parameters = array())
@@ -48,10 +50,36 @@ if ( ! function_exists('app_path'))
 	}
 }
 
+if ( ! function_exists('append_config'))
+{
+	/**
+	 * Assign high numeric IDs to a config item to force appending.
+	 *
+	 * @param  array  $array
+	 * @return array
+	 */
+	function append_config(array $array)
+	{
+		$start = 9999;
+
+		foreach ($array as $key => $value)
+		{
+			if (is_numeric($key))
+			{
+				$start++;
+
+				$array[$start] = array_pull($array, $key);
+			}
+		}
+
+		return $array;
+	}
+}
+
 if ( ! function_exists('array_add'))
 {
 	/**
-	 * Add an element to an array if it doesn't exist.
+	 * Add an element to an array using "dot" notation if it doesn't exist.
 	 *
 	 * @param  array   $array
 	 * @param  string  $key
@@ -60,7 +88,10 @@ if ( ! function_exists('array_add'))
 	 */
 	function array_add($array, $key, $value)
 	{
-		if ( ! isset($array[$key])) $array[$key] = $value;
+		if (is_null(array_get($array, $key)))
+		{
+			array_set($array, $key, $value);
+		}
 
 		return $array;
 	}
@@ -198,6 +229,22 @@ if ( ! function_exists('array_first'))
 	}
 }
 
+if ( ! function_exists('array_last'))
+{
+	/**
+	 * Return the last element in an array passing a given truth test.
+	 *
+	 * @param  array    $array
+	 * @param  Closure  $callback
+	 * @param  mixed    $default
+	 * @return mixed
+	 */
+	function array_last($array, $callback, $default = null)
+	{
+		return array_first(array_reverse($array), $callback, $default);
+	}
+}
+
 if ( ! function_exists('array_flatten'))
 {
 	/**
@@ -219,29 +266,30 @@ if ( ! function_exists('array_flatten'))
 if ( ! function_exists('array_forget'))
 {
 	/**
-	 * Remove an array item from a given array using "dot" notation.
+	 * Remove one or many array items from a given array using "dot" notation.
 	 *
-	 * @param  array   $array
-	 * @param  string  $key
+	 * @param  array        $array
+	 * @param  array|string $keys
 	 * @return void
 	 */
-	function array_forget(&$array, $key)
+	function array_forget(&$array, $keys)
 	{
-		$keys = explode('.', $key);
-
-		while (count($keys) > 1)
+		foreach ((array) $keys as $key)
 		{
-			$key = array_shift($keys);
+			$parts = explode('.', $key);
 
-			if ( ! isset($array[$key]) || ! is_array($array[$key]))
+			while (count($parts) > 1)
 			{
-				return;
+				$part = array_shift($parts);
+
+				if (isset($array[$part]) && is_array($array[$part]))
+				{
+					$array =& $array[$part];
+				}
 			}
 
-			$array =& $array[$key];
+			unset($array[array_shift($parts)]);
 		}
-
-		unset($array[array_shift($keys)]);
 	}
 }
 
@@ -334,11 +382,12 @@ if ( ! function_exists('array_pull'))
 	 *
 	 * @param  array   $array
 	 * @param  string  $key
+	 * @param  mixed   $default
 	 * @return mixed
 	 */
-	function array_pull(&$array, $key)
+	function array_pull(&$array, $key, $default = null)
 	{
-		$value = array_get($array, $key);
+		$value = array_get($array, $key, $default);
 
 		array_forget($array, $key);
 
@@ -400,6 +449,28 @@ if ( ! function_exists('array_sort'))
 	}
 }
 
+if ( ! function_exists('array_where'))
+{
+	/**
+	 * Filter the array using the given Closure.
+	 *
+	 * @param  array  $array
+	 * @param  \Closure  $callback
+	 * @return array
+	 */
+	function array_where($array, Closure $callback)
+	{
+		$filtered = array();
+
+		foreach ($array as $key => $value)
+		{
+			if (call_user_func($callback, $key, $value)) $filtered[$key] = $value;
+		}
+
+		return $filtered;
+	}
+}
+
 if ( ! function_exists('asset'))
 {
 	/**
@@ -420,6 +491,7 @@ if ( ! function_exists('base_path'))
 	/**
 	 * Get the path to the base of the install.
 	 *
+	 * @param  string  $path
 	 * @return string
 	 */
 	function base_path($path = '')
@@ -438,7 +510,7 @@ if ( ! function_exists('camel_case'))
 	 */
 	function camel_case($value)
 	{
-		return Illuminate\Support\Str::camel($value);
+		return Str::camel($value);
 	}
 }
 
@@ -458,12 +530,35 @@ if ( ! function_exists('class_basename'))
 	}
 }
 
+if ( ! function_exists('class_uses_recursive'))
+{
+	/**
+	 * Returns all traits used by a class, it's subclasses and trait of their traits
+	 *
+	 * @param  string $class
+	 * @return array
+	 */
+	function class_uses_recursive($class)
+	{
+		$results = [];
+
+		foreach (array_merge([$class => $class], class_parents($class)) as $class)
+		{
+			$results += trait_uses_recursive($class);
+		}
+
+		return array_unique($results);
+	}
+}
+
 if ( ! function_exists('csrf_token'))
 {
 	/**
 	 * Get the CSRF token value.
 	 *
 	 * @return string
+	 *
+	 * @throws RuntimeException
 	 */
 	function csrf_token()
 	{
@@ -477,6 +572,50 @@ if ( ! function_exists('csrf_token'))
 		{
 			throw new RuntimeException("Application session store not set.");
 		}
+	}
+}
+
+if ( ! function_exists('data_get'))
+{
+	/**
+	 * Get an item from an array or object using "dot" notation.
+	 *
+	 * @param  mixed   $target
+	 * @param  string  $key
+	 * @param  mixed   $default
+	 * @return mixed
+	 */
+	function data_get($target, $key, $default = null)
+	{
+		if (is_null($key)) return $target;
+
+		foreach (explode('.', $key) as $segment)
+		{
+			if (is_array($target))
+			{
+				if ( ! array_key_exists($segment, $target))
+				{
+					return value($default);
+				}
+
+				$target = $target[$segment];
+			}
+			elseif (is_object($target))
+			{
+				if ( ! isset($target->{$segment}))
+				{
+					return value($default);
+				}
+
+				$target = $target->{$segment};
+			}
+			else
+			{
+				return value($default);
+			}
+		}
+
+		return $target;
 	}
 }
 
@@ -513,13 +652,13 @@ if ( ! function_exists('ends_with'))
 	/**
 	 * Determine if a given string ends with a given substring.
 	 *
-	 * @param string $haystack
-	 * @param string|array $needle
+	 * @param string  $haystack
+	 * @param string|array  $needle
 	 * @return bool
 	 */
 	function ends_with($haystack, $needle)
 	{
-		return Illuminate\Support\Str::endsWith($haystack, $needle);
+		return Str::endsWith($haystack, $needle);
 	}
 }
 
@@ -631,7 +770,7 @@ if ( ! function_exists('object_get'))
 	 */
 	function object_get($object, $key, $default = null)
 	{
-		if (is_null($key)) return $object;
+		if (is_null($key) || trim($key) == '') return $object;
 
 		foreach (explode('.', $key) as $segment)
 		{
@@ -672,6 +811,7 @@ if ( ! function_exists('public_path'))
 	/**
 	 * Get the path to the public folder.
 	 *
+	 * @param  string  $path
 	 * @return string
 	 */
 	function public_path($path = '')
@@ -686,7 +826,7 @@ if ( ! function_exists('route'))
 	 * Generate a URL to a named route.
 	 *
 	 * @param  string  $route
-	 * @param  string  $parameters
+	 * @param  array   $parameters
 	 * @return string
 	 */
 	function route($route, $parameters = array())
@@ -735,7 +875,7 @@ if ( ! function_exists('snake_case'))
 	 */
 	function snake_case($value, $delimiter = '_')
 	{
-		return Illuminate\Support\Str::snake($value, $delimiter);
+		return Str::snake($value, $delimiter);
 	}
 }
 
@@ -750,7 +890,7 @@ if ( ! function_exists('starts_with'))
 	 */
 	function starts_with($haystack, $needle)
 	{
-		return Illuminate\Support\Str::startsWith($haystack, $needle);
+		return Str::startsWith($haystack, $needle);
 	}
 }
 
@@ -759,6 +899,7 @@ if ( ! function_exists('storage_path'))
 	/**
 	 * Get the path to the storage folder.
 	 *
+	 * @param   string  $path
 	 * @return  string
 	 */
 	function storage_path($path = '')
@@ -772,13 +913,13 @@ if ( ! function_exists('str_contains'))
 	/**
 	 * Determine if a given string contains a given substring.
 	 *
-	 * @param  string        $haystack
+	 * @param  string  $haystack
 	 * @param  string|array  $needle
 	 * @return bool
 	 */
 	function str_contains($haystack, $needle)
 	{
-		return Illuminate\Support\Str::contains($haystack, $needle);
+		return Str::contains($haystack, $needle);
 	}
 }
 
@@ -793,7 +934,7 @@ if ( ! function_exists('str_finish'))
 	 */
 	function str_finish($value, $cap)
 	{
-		return Illuminate\Support\Str::finish($value, $cap);
+		return Str::finish($value, $cap);
 	}
 }
 
@@ -808,7 +949,23 @@ if ( ! function_exists('str_is'))
 	 */
 	function str_is($pattern, $value)
 	{
-		return Illuminate\Support\Str::is($pattern, $value);
+		return Str::is($pattern, $value);
+	}
+}
+
+if ( ! function_exists('str_limit'))
+{
+	/**
+	 * Limit the number of characters in a string.
+	 *
+	 * @param  string $value
+	 * @param  int    $limit
+	 * @param  string $end
+	 * @return string
+	 */
+	function str_limit($value, $limit = 100, $end = '...')
+	{
+		return Str::limit($value, $limit, $end);
 	}
 }
 
@@ -823,23 +980,23 @@ if ( ! function_exists('str_plural'))
 	 */
 	function str_plural($value, $count = 2)
 	{
-		return Illuminate\Support\Str::plural($value, $count);
+		return Str::plural($value, $count);
 	}
 }
 
 if ( ! function_exists('str_random'))
 {
 	/**
-	 * Generate a "random" alpha-numeric string.
-	 *
-	 * Should not be considered sufficient for cryptography, etc.
+	 * Generate a more truly "random" alpha-numeric string.
 	 *
 	 * @param  int     $length
 	 * @return string
+	 *
+	 * @throws \RuntimeException
 	 */
 	function str_random($length = 16)
 	{
-		return Illuminate\Support\Str::random($length);
+		return Str::random($length);
 	}
 }
 
@@ -849,7 +1006,7 @@ if ( ! function_exists('str_replace_array'))
 	 * Replace a given value in the string sequentially with an array.
 	 *
 	 * @param  string  $search
-	 * @param  array  $replace
+	 * @param  array   $replace
 	 * @param  string  $subject
 	 * @return string
 	 */
@@ -874,7 +1031,7 @@ if ( ! function_exists('str_singular'))
 	 */
 	function str_singular($value)
 	{
-		return Illuminate\Support\Str::singular($value);
+		return Str::singular($value);
 	}
 }
 
@@ -888,7 +1045,28 @@ if ( ! function_exists('studly_case'))
 	 */
 	function studly_case($value)
 	{
-		return Illuminate\Support\Str::studly($value);
+		return Str::studly($value);
+	}
+}
+
+if ( ! function_exists('trait_uses_recursive'))
+{
+	/**
+	 * Returns all traits used by a trait and its traits
+	 *
+	 * @param  $trait
+	 * @return array
+	 */
+	function trait_uses_recursive($trait)
+	{
+		$traits = class_uses($trait);
+
+		foreach ($traits as $trait)
+		{
+			$traits += trait_uses_recursive($trait);
+		}
+
+		return $traits;
 	}
 }
 

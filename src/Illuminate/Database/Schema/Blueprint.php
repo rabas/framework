@@ -361,6 +361,18 @@ class Blueprint {
 	}
 
 	/**
+	 * Create a new char column on the table.
+	 *
+	 * @param  string  $column
+	 * @param  int  $length
+	 * @return \Illuminate\Support\Fluent
+	 */
+	public function char($column, $length = 255)
+	{
+		return $this->addColumn('char', $column, compact('length'));
+	}
+
+	/**
 	 * Create a new string column on the table.
 	 *
 	 * @param  string  $column
@@ -514,7 +526,6 @@ class Blueprint {
 	 * @param  int|null	$total
 	 * @param  int|null $places
 	 * @return \Illuminate\Support\Fluent
-	 *
 	 */
 	public function double($column, $total = null, $places = null)
 	{
@@ -654,9 +665,21 @@ class Blueprint {
 	 */
 	public function morphs($name)
 	{
-		$this->integer("{$name}_id");
+		$this->unsignedInteger("{$name}_id");
 
 		$this->string("{$name}_type");
+
+		$this->index(array("{$name}_id", "{$name}_type"));
+	}
+
+	/**
+	 * Adds the `remember_token` column to the table.
+	 *
+	 * @return void
+	 */
+	public function rememberToken()
+	{
+	  $this->string('remember_token', 100)->nullable();
 	}
 
 	/**

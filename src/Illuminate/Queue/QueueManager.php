@@ -30,6 +30,39 @@ class QueueManager {
 	}
 
 	/**
+	 * Register an event listener for the daemon queue loop.
+	 *
+	 * @param  mixed  $callback
+	 * @return void
+	 */
+	public function looping($callback)
+	{
+		$this->app['events']->listen('illuminate.queue.looping', $callback);
+	}
+
+	/**
+	 * Register an event listener for the failed job event.
+	 *
+	 * @param  mixed  $callback
+	 * @return void
+	 */
+	public function failing($callback)
+	{
+		$this->app['events']->listen('illuminate.queue.failed', $callback);
+	}
+
+	/**
+	 * Register an event listener for the daemon queue stopping.
+	 *
+	 * @param  mixed  $callback
+	 * @return void
+	 */
+	public function stopping($callback)
+	{
+		$this->app['events']->listen('illuminate.queue.stopping', $callback);
+	}
+
+	/**
 	 * Determine if the driver is connected.
 	 *
 	 * @param  string  $name
@@ -37,7 +70,7 @@ class QueueManager {
 	 */
 	public function connected($name = null)
 	{
-		return isset($this->connections[$name ?: $this->getDefault()]);
+		return isset($this->connections[$name ?: $this->getDefaultDriver()]);
 	}
 
 	/**
@@ -48,7 +81,7 @@ class QueueManager {
 	 */
 	public function connection($name = null)
 	{
-		$name = $name ?: $this->getDefault();
+		$name = $name ?: $this->getDefaultDriver();
 
 		// If the connection has not been resolved yet we will resolve it now as all
 		// of the connections are resolved when they are actually needed so we do
@@ -58,6 +91,8 @@ class QueueManager {
 			$this->connections[$name] = $this->resolve($name);
 
 			$this->connections[$name]->setContainer($this->app);
+
+			$this->connections[$name]->setEncrypter($this->app['encrypter']);
 		}
 
 		return $this->connections[$name];
@@ -81,6 +116,8 @@ class QueueManager {
 	 *
 	 * @param  string  $driver
 	 * @return \Illuminate\Queue\Connectors\ConnectorInterface
+	 *
+	 * @throws \InvalidArgumentException
 	 */
 	protected function getConnector($driver)
 	{
@@ -132,9 +169,31 @@ class QueueManager {
 	 *
 	 * @return string
 	 */
-	protected function getDefault()
+	public function getDefaultDriver()
 	{
 		return $this->app['config']['queue.default'];
+	}
+
+	/**
+	 * Set the name of the default queue connection.
+	 *
+	 * @param  string  $name
+	 * @return void
+	 */
+	public function setDefaultDriver($name)
+	{
+		$this->app['config']['queue.default'] = $name;
+	}
+
+	/**
+	 * Get the full name for the given connection.
+	 *
+	 * @param  string  $connection
+	 * @return string
+	 */
+	public function getName($connection = null)
+	{
+		return $connection ?: $this->getDefaultDriver();
 	}
 
 	/**

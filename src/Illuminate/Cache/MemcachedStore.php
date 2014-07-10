@@ -73,7 +73,7 @@ class MemcachedStore extends TaggableStore implements StoreInterface {
 	}
 
 	/**
-	 * Increment the value of an item in the cache.
+	 * Decrement the value of an item in the cache.
 	 *
 	 * @param  string  $key
 	 * @param  mixed   $value
@@ -100,11 +100,11 @@ class MemcachedStore extends TaggableStore implements StoreInterface {
 	 * Remove an item from the cache.
 	 *
 	 * @param  string  $key
-	 * @return void
+	 * @return bool
 	 */
 	public function forget($key)
 	{
-		$this->memcached->delete($this->prefix.$key);
+		return $this->memcached->delete($this->prefix.$key);
 	}
 
 	/**

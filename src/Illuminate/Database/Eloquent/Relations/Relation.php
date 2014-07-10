@@ -72,7 +72,7 @@ abstract class Relation {
 	 *
 	 * @param  array   $models
 	 * @param  string  $relation
-	 * @return void
+	 * @return array
 	 */
 	abstract public function initRelation(array $models, $relation);
 
@@ -94,6 +94,16 @@ abstract class Relation {
 	abstract public function getResults();
 
 	/**
+	 * Get the relationship for eager loading.
+	 *
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function getEager()
+	{
+		return $this->get();
+	}
+
+	/**
 	 * Touch all of the related models for the relationship.
 	 *
 	 * @return void
@@ -103,16 +113,6 @@ abstract class Relation {
 		$column = $this->getRelated()->getUpdatedAtColumn();
 
 		$this->rawUpdate(array($column => $this->getRelated()->freshTimestampString()));
-	}
-
-	/**
-	 * Restore all of the soft deleted related models.
-	 *
-	 * @return int
-	 */
-	public function restore()
-	{
-		return $this->query->withTrashed()->restore();
 	}
 
 	/**
@@ -130,9 +130,10 @@ abstract class Relation {
 	 * Add the constraints for a relationship count query.
 	 *
 	 * @param  \Illuminate\Database\Eloquent\Builder  $query
+	 * @param  \Illuminate\Database\Eloquent\Builder  $parent
 	 * @return \Illuminate\Database\Eloquent\Builder
 	 */
-	public function getRelationCountQuery(Builder $query)
+	public function getRelationCountQuery(Builder $query, Builder $parent)
 	{
 		$query->select(new Expression('count(*)'));
 
@@ -142,7 +143,7 @@ abstract class Relation {
 	}
 
 	/**
-	 * Run a callback with constrains disabled on the relation.
+	 * Run a callback with constraints disabled on the relation.
 	 *
 	 * @param  \Closure  $callback
 	 * @return mixed
@@ -164,16 +165,17 @@ abstract class Relation {
 	/**
 	 * Get all of the primary keys for an array of models.
 	 *
-	 * @param  array  $models
+	 * @param  array   $models
+	 * @param  string  $key
 	 * @return array
 	 */
-	protected function getKeys(array $models)
+	protected function getKeys(array $models, $key = null)
 	{
-		return array_values(array_map(function($value)
+		return array_unique(array_values(array_map(function($value) use ($key)
 		{
-			return $value->getKey();
+			return $key ? $value->getAttribute($key) : $value->getKey();
 
-		}, $models));
+		}, $models)));
 	}
 
 	/**
@@ -207,7 +209,7 @@ abstract class Relation {
 	}
 
 	/**
-	 * Get the fully qualified parent key naem.
+	 * Get the fully qualified parent key name.
 	 *
 	 * @return string
 	 */

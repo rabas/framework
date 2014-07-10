@@ -8,7 +8,7 @@ use Symfony\Component\Console\Input\InputOption;
 
 class RoutesCommand extends Command {
 
-    	/**
+	/**
 	 * The console command name.
 	 *
 	 * @var string
@@ -37,14 +37,7 @@ class RoutesCommand extends Command {
 	protected $routes;
 
 	/**
-	 * The table helper set.
-	 *
-	 * @var \Symfony\Component\Console\Helper\TableHelper
-	 */
-	protected $table;
-
-	/**
-	 * The table headeers for the command.
+	 * The table headers for the command.
 	 *
 	 * @var array
 	 */
@@ -73,8 +66,6 @@ class RoutesCommand extends Command {
 	 */
 	public function fire()
 	{
-		$this->table = $this->getHelperSet()->get('table');
-
 		if (count($this->routes) == 0)
 		{
 			return $this->error("Your application doesn't have any routes.");
@@ -109,7 +100,7 @@ class RoutesCommand extends Command {
 	 */
 	protected function getRouteInformation(Route $route)
 	{
-		$uri = head($route->methods()).' '.$route->uri();
+		$uri = implode('|', $route->methods()).' '.$route->uri();
 
 		return $this->filterRoute(array(
 			'host'   => $route->domain(),
@@ -129,9 +120,7 @@ class RoutesCommand extends Command {
 	 */
 	protected function displayRoutes(array $routes)
 	{
-		$this->table->setHeaders($this->headers)->setRows($routes);
-
-		$this->table->render($this->getOutput());
+		$this->table($this->headers, $routes);
 	}
 
 	/**
@@ -166,7 +155,7 @@ class RoutesCommand extends Command {
 			// we have already gathered up then return them back out to these consumers.
 			$inner = $this->getMethodPatterns($route->uri(), $method);
 
-			$patterns = array_merge($patterns, $inner);
+			$patterns = array_merge($patterns, array_keys($inner));
 		}
 
 		return $patterns;

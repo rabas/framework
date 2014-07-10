@@ -41,6 +41,12 @@ class SupportHelpersTest extends PHPUnit_Framework_TestCase {
 		array_forget($array, 'names.developer');
 		$this->assertFalse(isset($array['names']['developer']));
 		$this->assertTrue(isset($array['names']['otherDeveloper']));
+
+		$array = ['names' => ['developer' => 'taylor', 'otherDeveloper' => 'dayle', 'thirdDeveloper' => 'Lucas']];
+		array_forget($array, ['names.developer', 'names.otherDeveloper']);
+		$this->assertFalse(isset($array['names']['developer']));
+		$this->assertFalse(isset($array['names']['otherDeveloper']));
+		$this->assertTrue(isset($array['names']['thirdDeveloper']));
 	}
 
 
@@ -207,6 +213,17 @@ class SupportHelpersTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('Taylor', object_get($class, 'name.first'));
 	}
 
+	public function testDataGet()
+	{
+		$object = (object) array('users' => array('name' => array('Taylor', 'Otwell')));
+		$array = array((object) array('users' => array((object) array('name' => 'Taylor'))));
+
+		$this->assertEquals('Taylor', data_get($object, 'users.name.0'));
+		$this->assertEquals('Taylor', data_get($array, '0.users.0.name'));
+		$this->assertNull(data_get($array, '0.users.3'));
+		$this->assertEquals('Not found', data_get($array, '0.users.3', 'Not found'));
+		$this->assertEquals('Not found', data_get($array, '0.users.3', function (){ return 'Not found'; }));
+	}
 
 	public function testArraySort()
 	{
@@ -223,4 +240,26 @@ class SupportHelpersTest extends PHPUnit_Framework_TestCase {
 		array_values(array_sort($array, function($v) { return $v['name']; })));
 	}
 
+
+	public function testClassUsesRecursiveShouldReturnTraitsOnParentClasses()
+	{
+		$this->assertEquals([
+			'SupportTestTraitOne' => 'SupportTestTraitOne',
+			'SupportTestTraitTwo' => 'SupportTestTraitTwo',
+		],
+		class_uses_recursive('SupportTestClassTwo'));
+	}
+
 }
+
+trait SupportTestTraitOne {}
+
+trait SupportTestTraitTwo {
+	use SupportTestTraitOne;
+}
+
+class SupportTestClassOne {
+	use SupportTestTraitTwo;
+}
+
+class SupportTestClassTwo extends SupportTestClassOne {}

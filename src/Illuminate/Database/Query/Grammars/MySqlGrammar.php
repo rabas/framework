@@ -5,13 +5,6 @@ use Illuminate\Database\Query\Builder;
 class MySqlGrammar extends Grammar {
 
 	/**
-	 * The keyword identifier wrapper format.
-	 *
-	 * @var string
-	 */
-	protected $wrapper = '`%s`';
-
-	/**
 	 * The components that make up a select clause.
 	 *
 	 * @var array
@@ -27,6 +20,7 @@ class MySqlGrammar extends Grammar {
 		'orders',
 		'limit',
 		'offset',
+		'lock',
 	);
 
 	/**
@@ -61,6 +55,20 @@ class MySqlGrammar extends Grammar {
 	}
 
 	/**
+	 * Compile the lock into SQL.
+	 *
+	 * @param  \Illuminate\Database\Query\Builder  $query
+	 * @param  bool|string  $value
+	 * @return string
+	 */
+	protected function compileLock(Builder $query, $value)
+	{
+		if (is_string($value)) return $value;
+
+		return $value ? 'for update' : 'lock in share mode';
+	}
+
+	/**
 	 * Compile an update statement into SQL.
 	 *
 	 * @param  \Illuminate\Database\Query\Builder  $query
@@ -82,6 +90,19 @@ class MySqlGrammar extends Grammar {
 		}
 
 		return rtrim($sql);
+	}
+
+	/**
+	 * Wrap a single string in keyword identifiers.
+	 *
+	 * @param  string  $value
+	 * @return string
+	 */
+	protected function wrapValue($value)
+	{
+		if ($value === '*') return $value;
+
+		return '`'.str_replace('`', '``', $value).'`';
 	}
 
 }

@@ -46,7 +46,7 @@ class WinCacheStore extends TaggableStore implements StoreInterface {
 	 */
 	public function put($key, $value, $minutes)
 	{
-		wincache_ucache_add($this->prefix.$key, $value, $minutes * 60);
+		wincache_ucache_set($this->prefix.$key, $value, $minutes * 60);
 	}
 
 	/**
@@ -89,11 +89,11 @@ class WinCacheStore extends TaggableStore implements StoreInterface {
 	 * Remove an item from the cache.
 	 *
 	 * @param  string  $key
-	 * @return void
+	 * @return bool
 	 */
 	public function forget($key)
 	{
-		wincache_ucache_delete($this->prefix.$key);
+		return wincache_ucache_delete($this->prefix.$key);
 	}
 
 	/**

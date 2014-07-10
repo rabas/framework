@@ -8,16 +8,9 @@ class SqsJob extends Job {
 	/**
 	 * The Amazon SQS client instance.
 	 *
-	 * @var Aws\Sqs\SqsClient
+	 * @var \Aws\Sqs\SqsClient
 	 */
 	protected $sqs;
-
-	/**
-	 * The queue URL that the job belongs to.
-	 *
-	 * @var string
-	 */
-	protected $queue;
 
 	/**
 	 * The Amazon SQS job instance.
@@ -53,7 +46,17 @@ class SqsJob extends Job {
 	 */
 	public function fire()
 	{
-		$this->resolveAndFire(json_decode($this->job['Body'], true));
+		$this->resolveAndFire(json_decode($this->getRawBody(), true));
+	}
+
+	/**
+	 * Get the raw body string for the job.
+	 *
+	 * @return string
+	 */
+	public function getRawBody()
+	{
+		return $this->job['Body'];
 	}
 
 	/**
@@ -106,7 +109,7 @@ class SqsJob extends Job {
 	/**
 	 * Get the IoC container instance.
 	 *
-	 * @return \Illuminate\Container
+	 * @return \Illuminate\Container\Container
 	 */
 	public function getContainer()
 	{

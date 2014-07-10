@@ -1,23 +1,23 @@
-<?php namespace Illuminate\Session\Console;
+<?php namespace Illuminate\Queue\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 
-class MakeTableCommand extends Command {
+class FailedTableCommand extends Command {
 
 	/**
 	 * The console command name.
 	 *
 	 * @var string
 	 */
-	protected $name = 'session:table';
+	protected $name = 'queue:failed-table';
 
 	/**
 	 * The console command description.
 	 *
 	 * @var string
 	 */
-	protected $description = 'Create a migration for the session database table';
+	protected $description = 'Create a migration for the failed queue jobs database table';
 
 	/**
 	 * The filesystem instance.
@@ -48,19 +48,19 @@ class MakeTableCommand extends Command {
 	{
 		$fullPath = $this->createBaseMigration();
 
-		$this->files->put($fullPath, $this->files->get(__DIR__.'/stubs/database.stub'));
+		$this->files->put($fullPath, $this->files->get(__DIR__.'/stubs/failed_jobs.stub'));
 
 		$this->info('Migration created successfully!');
 	}
 
 	/**
-	 * Create a base migration file for the session.
+	 * Create a base migration file for the table.
 	 *
 	 * @return string
 	 */
 	protected function createBaseMigration()
 	{
-		$name = 'create_session_table';
+		$name = 'create_failed_jobs_table';
 
 		$path = $this->laravel['path'].'/database/migrations';
 

@@ -6,7 +6,7 @@ use Illuminate\Container\Container;
 use Illuminate\View\Engines\EngineResolver;
 use Illuminate\Support\Contracts\ArrayableInterface as Arrayable;
 
-class Environment {
+class Factory {
 
 	/**
 	 * The engine implementation.
@@ -32,7 +32,7 @@ class Environment {
 	/**
 	 * The IoC container instance.
 	 *
-	 * @var \Illuminate\Container
+	 * @var \Illuminate\Container\Container
 	 */
 	protected $container;
 
@@ -42,6 +42,13 @@ class Environment {
 	 * @var array
 	 */
 	protected $shared = array();
+
+	/**
+	 * Array of registered view name aliases.
+	 *
+	 * @var array
+	 */
+	protected $aliases = array();
 
 	/**
 	 * All of the registered view names.
@@ -86,7 +93,7 @@ class Environment {
 	protected $renderCount = 0;
 
 	/**
-	 * Create a new view environment instance.
+	 * Create a new view factory instance.
 	 *
 	 * @param  \Illuminate\View\Engines\EngineResolver  $engines
 	 * @param  \Illuminate\View\ViewFinderInterface  $finder
@@ -103,7 +110,7 @@ class Environment {
 	}
 
 	/**
-	 * Get a evaluated view contents for the given view.
+	 * Get the evaluated view contents for the given view.
 	 *
 	 * @param  string  $view
 	 * @param  array   $data
@@ -112,6 +119,8 @@ class Environment {
 	 */
 	public function make($view, $data = array(), $mergeData = array())
 	{
+		if (isset($this->aliases[$view])) $view = $this->aliases[$view];
+
 		$path = $this->finder->find($view);
 
 		$data = array_merge($mergeData, $this->parseData($data));
@@ -133,7 +142,7 @@ class Environment {
 	}
 
 	/**
-	 * Get a evaluated view contents for a named view.
+	 * Get the evaluated view contents for a named view.
 	 *
 	 * @param string $view
 	 * @param mixed $data
@@ -154,6 +163,18 @@ class Environment {
 	public function name($view, $name)
 	{
 		$this->names[$name] = $view;
+	}
+
+	/**
+	 * Add an alias for a view.
+	 *
+	 * @param  string  $view
+	 * @param  string  $alias
+	 * @return void
+	 */
+	public function alias($view, $alias)
+	{
+		$this->aliases[$alias] = $view;
 	}
 
 	/**
@@ -226,9 +247,14 @@ class Environment {
 	 * @param  string  $path
 	 * @return \Illuminate\View\Engines\EngineInterface
 	 */
-	protected function getEngineFromPath($path)
+	public function getEngineFromPath($path)
 	{
-		$engine = $this->extensions[$this->getExtension($path)];
+		if ( ! $extension = $this->getExtension($path))
+		{
+			throw new \InvalidArgumentException("Unrecognized extension in file: $path");
+		}
+
+		$engine = $this->extensions[$extension];
 
 		return $this->engines->resolve($engine);
 	}
@@ -283,6 +309,24 @@ class Environment {
 		}
 
 		return $creators;
+	}
+
+	/**
+	 * Register multiple view composers via an array.
+	 *
+	 * @param array  $composers
+	 * @return array
+	 */
+	public function composers(array $composers)
+	{
+		$registered = array();
+
+		foreach ($composers as $callback => $views)
+		{
+			$registered += $this->composer($views, $callback);
+		}
+
+		return $registered;
 	}
 
 	/**
@@ -564,6 +608,16 @@ class Environment {
 	}
 
 	/**
+	 * Flush all of the section contents if done rendering.
+	 *
+	 * @return void
+	 */
+	public function flushSectionsIfDoneRendering()
+	{
+		if ($this->doneRendering()) $this->flushSections();
+	}
+
+	/**
 	 * Increment the rendering counter.
 	 *
 	 * @return void
@@ -617,6 +671,18 @@ class Environment {
 	}
 
 	/**
+	 * Prepend a new namespace to the loader.
+	 *
+	 * @param  string  $namespace
+	 * @param  string|array  $hints
+	 * @return void
+	 */
+	public function prependNamespace($namespace, $hints)
+	{
+		$this->finder->prependNamespace($namespace, $hints);
+	}
+
+	/**
 	 * Register a valid view extension and its engine.
 	 *
 	 * @param  string   $extension
@@ -633,7 +699,7 @@ class Environment {
 			$this->engines->register($engine, $resolver);
 		}
 
-		unset($this->extensions[$engine]);
+		unset($this->extensions[$extension]);
 
 		$this->extensions = array_merge(array($extension => $engine), $this->extensions);
 	}
